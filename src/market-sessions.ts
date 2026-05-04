@@ -1,4 +1,4 @@
-import { Session } from './session.js'
+import { type ReadOnlySessionLike as Session } from './session.js'
 import { parseTastyObject, type JsonMap } from './utils.js'
 
 export enum ExchangeType {

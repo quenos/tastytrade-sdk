@@ -58,6 +58,10 @@
       "types": "./dist/src/paper.d.ts",
       "import": "./dist/src/paper.js"
     },
+    "./read-only": {
+      "types": "./dist/src/read-only.d.ts",
+      "import": "./dist/src/read-only.js"
+    },
     "./search": {
       "types": "./dist/src/search.d.ts",
       "import": "./dist/src/search.js"

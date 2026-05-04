@@ -18,7 +18,7 @@ import {
   type Event
 } from './dxfeed/index.js'
 import { PlacedComplexOrder, PlacedOrder } from './order.js'
-import { Session } from './session.js'
+import { Session, type ReadOnlySessionLike } from './session.js'
 import { Watchlist } from './watchlists.js'
 import {
   TastytradeError,
@@ -261,7 +261,7 @@ export class AlertStreamer {
 }
 
 export class DXLinkStreamer {
-  readonly session: Session
+  readonly session: ReadOnlySessionLike
   readonly webSocketFactory: WebSocketFactory
   websocket: WebSocketLike | null = null
   private authToken = ''
@@ -275,7 +275,7 @@ export class DXLinkStreamer {
   private readonly openWaiters = new Map<EventName, Array<() => void>>()
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
 
-  constructor(session: Session, webSocketFactory: WebSocketFactory = defaultWebSocketFactory) {
+  constructor(session: ReadOnlySessionLike, webSocketFactory: WebSocketFactory = defaultWebSocketFactory) {
     this.session = session
     this.webSocketFactory = webSocketFactory
     let index = 0

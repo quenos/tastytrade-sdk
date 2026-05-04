@@ -1,6 +1,6 @@
 import { DecimalValue, type DecimalInput } from './decimal.js'
 import { InstrumentType, TradeableTastytradeData } from './order.js'
-import { type Session } from './session.js'
+import { type ReadOnlySessionLike as Session } from './session.js'
 import { TastytradeData, type JsonMap } from './utils.js'
 
 export enum OptionType {

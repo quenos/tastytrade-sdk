@@ -23,6 +23,12 @@ const TT_DATE_FMT_RE = /\.\d{3}Z$/
 
 type SignedFieldList = readonly string[]
 
+export type OrderPlacementOptions =
+  | { mode: 'dry-run' }
+  | { mode: 'live'; confirm: 'PLACE_LIVE_ORDER' }
+
+type OrderPlacementIntent = true | OrderPlacementOptions
+
 export class AccountBalance {
   [key: string]: unknown
   readonly data: JsonMap
@@ -550,18 +556,18 @@ export class Account {
     return this.getComplexOrderHistory(session, params)
   }
 
-  async placeOrder(session: Session, order: NewOrder, dryRun = true): Promise<PlacedOrderResponse> {
+  async placeOrder(session: Session, order: NewOrder, intent: OrderPlacementIntent = { mode: 'dry-run' }): Promise<PlacedOrderResponse> {
     let url = `/accounts/${this.account_number}/orders`
-    if (dryRun) url += '/dry-run'
+    if (isDryRunOrderPlacement(intent)) url += '/dry-run'
     return new PlacedOrderResponse(await session._post(url, { body: order.toApiJSON() }))
   }
 
-  async place_order(session: Session, order: NewOrder, dryRun = true): Promise<PlacedOrderResponse> {
-    return this.placeOrder(session, order, dryRun)
+  async place_order(session: Session, order: NewOrder, intent: OrderPlacementIntent = { mode: 'dry-run' }): Promise<PlacedOrderResponse> {
+    return this.placeOrder(session, order, intent)
   }
 
-  async a_place_order(session: Session, order: NewOrder, dryRun = true): Promise<PlacedOrderResponse> {
-    return this.placeOrder(session, order, dryRun)
+  async a_place_order(session: Session, order: NewOrder, intent: OrderPlacementIntent = { mode: 'dry-run' }): Promise<PlacedOrderResponse> {
+    return this.placeOrder(session, order, intent)
   }
 
   async getOrderBuyingPowerEffect(session: Session, order: NewOrder): Promise<JsonMap> {
@@ -575,18 +581,30 @@ export class Account {
     return this.getOrderBuyingPowerEffect(session, order)
   }
 
-  async placeComplexOrder(session: Session, order: NewComplexOrder, dryRun = true): Promise<PlacedComplexOrderResponse> {
+  async placeComplexOrder(
+    session: Session,
+    order: NewComplexOrder,
+    intent: OrderPlacementIntent = { mode: 'dry-run' }
+  ): Promise<PlacedComplexOrderResponse> {
     let url = `/accounts/${this.account_number}/complex-orders`
-    if (dryRun) url += '/dry-run'
+    if (isDryRunOrderPlacement(intent)) url += '/dry-run'
     return new PlacedComplexOrderResponse(await session._post(url, { body: order.toApiJSON() }))
   }
 
-  async place_complex_order(session: Session, order: NewComplexOrder, dryRun = true): Promise<PlacedComplexOrderResponse> {
-    return this.placeComplexOrder(session, order, dryRun)
+  async place_complex_order(
+    session: Session,
+    order: NewComplexOrder,
+    intent: OrderPlacementIntent = { mode: 'dry-run' }
+  ): Promise<PlacedComplexOrderResponse> {
+    return this.placeComplexOrder(session, order, intent)
   }
 
-  async a_place_complex_order(session: Session, order: NewComplexOrder, dryRun = true): Promise<PlacedComplexOrderResponse> {
-    return this.placeComplexOrder(session, order, dryRun)
+  async a_place_complex_order(
+    session: Session,
+    order: NewComplexOrder,
+    intent: OrderPlacementIntent = { mode: 'dry-run' }
+  ): Promise<PlacedComplexOrderResponse> {
+    return this.placeComplexOrder(session, order, intent)
   }
 
   async replaceOrder(session: Session, oldOrderId: number, newOrder: NewOrder): Promise<PlacedOrder> {
@@ -630,6 +648,18 @@ function assignData(target: Record<string, unknown>, data: JsonMap): void {
 
 function compactParams(params: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== null && value !== undefined))
+}
+
+function isDryRunOrderPlacement(intent: OrderPlacementIntent | false): boolean {
+  if (intent === true) return true
+  if (intent === false) throw liveOrderConfirmationError()
+  if (intent.mode === 'dry-run') return true
+  if (intent.mode === 'live' && intent.confirm === 'PLACE_LIVE_ORDER') return false
+  throw liveOrderConfirmationError()
+}
+
+function liveOrderConfirmationError(): TypeError {
+  return new TypeError("Live order placement requires { mode: 'live', confirm: 'PLACE_LIVE_ORDER' }.")
 }
 
 function todayInNewYork(): string {

@@ -1,5 +1,5 @@
 import { DecimalValue } from './decimal.js'
-import { Session } from './session.js'
+import { type ReadOnlySessionLike as Session } from './session.js'
 import { parseTastyObject, validateAndParse, type JsonMap } from './utils.js'
 
 type DateInput = Date | string

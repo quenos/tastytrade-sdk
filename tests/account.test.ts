@@ -276,7 +276,10 @@ test('Account placeOrder and replaceOrder serialize bodies and wrap signed respo
   })
   const order = newOrder()
 
-  const placed = await account.placeOrder(session as unknown as Session, order, false)
+  const placed = await account.placeOrder(session as unknown as Session, order, {
+    mode: 'live',
+    confirm: 'PLACE_LIVE_ORDER'
+  })
   assert.ok(placed instanceof PlacedOrderResponse)
   assert.equal(placed.order.data.price, '-1.25')
   assert.equal(placed.buying_power_effect.data.change_in_buying_power, '-2')
@@ -302,6 +305,24 @@ test('Account placeOrder and replaceOrder serialize bodies and wrap signed respo
   assert.equal(replaceBody['price-effect'], 'Debit')
 })
 
+test('Account placeOrder defaults to dry-run and rejects legacy boolean live placement', async () => {
+  const account = new Account({ 'account-number': '5WT' })
+  const session = new MockSession({
+    '/accounts/5WT/orders/dry-run': placedOrderResponse()
+  })
+  const order = newOrder()
+
+  await account.placeOrder(session as unknown as Session, order, { mode: 'dry-run' })
+  assert.equal(lastCall(session).url, '/accounts/5WT/orders/dry-run')
+
+  await assert.rejects(
+    // @ts-expect-error legacy boolean false is intentionally not type-valid for live orders.
+    account.placeOrder(session as unknown as Session, order, false),
+    /Live order placement requires \{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' \}/
+  )
+  assert.equal(session.calls.filter((call) => call.method === 'post').length, 1)
+})
+
 test('Account placeComplexOrder uses complex endpoint and response wrapper', async () => {
   const account = new Account({ 'account-number': '5WT' })
   const session = new MockSession({
@@ -324,6 +345,31 @@ test('Account placeComplexOrder uses complex endpoint and response wrapper', asy
   assert.equal(body.type, 'OTOCO')
   assert.ok(Array.isArray(body.orders))
   assert.ok(isJsonMap(body['trigger-order']))
+})
+
+test('Account placeComplexOrder requires explicit confirmation for live placement', async () => {
+  const account = new Account({ 'account-number': '5WT' })
+  const session = new MockSession({
+    '/accounts/5WT/complex-orders': {
+      ...placedOrderResponse(),
+      'complex-order': complexOrderPayload()
+    }
+  })
+  const child = newOrder()
+  const complexOrder = new NewComplexOrder({ orders: [child] })
+
+  await assert.rejects(
+    // @ts-expect-error legacy boolean false is intentionally not type-valid for live complex orders.
+    account.placeComplexOrder(session as unknown as Session, complexOrder, false),
+    /Live order placement requires \{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' \}/
+  )
+  assert.equal(session.calls.length, 0)
+
+  await account.placeComplexOrder(session as unknown as Session, complexOrder, {
+    mode: 'live',
+    confirm: 'PLACE_LIVE_ORDER'
+  })
+  assert.equal(lastCall(session).url, '/accounts/5WT/complex-orders')
 })
 
 function newOrder(): NewOrder {

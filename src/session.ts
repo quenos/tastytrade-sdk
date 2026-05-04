@@ -18,6 +18,29 @@ export interface PageParams {
   [key: string]: unknown
 }
 
+export interface ReadOnlySessionLike {
+  readonly is_test: boolean
+  readonly proxy: string | null
+  readonly base_url: string
+  readonly fetch: FetchLike
+  readonly headers: Record<string, string>
+  session_expiration: number
+  session_token: string
+  streamer_expiration: number
+  streamer_token: string
+  dxlink_url: string
+  serialize(): string
+  refresh(force?: boolean): Promise<void>
+  refreshStreamerToken(): Promise<void>
+  refresh_streamer_token(): Promise<void>
+  validate(): Promise<boolean>
+  a_validate(): Promise<boolean>
+  a_refresh(): Promise<void>
+  _get(url: string, init?: RequestInit & { params?: Record<string, unknown> }): Promise<JsonMap>
+  _a_get(url: string, init?: RequestInit & { params?: Record<string, unknown> }): Promise<JsonMap>
+  _paginate<T>(factory: (item: JsonMap) => T, url: string, params: PageParams): Promise<T[]>
+}
+
 type DateInput = Date | string
 
 class SessionModel {
@@ -290,6 +313,10 @@ export class Session {
   }
 
   serialize(): string {
+    return JSON.stringify(safeSessionSnapshot(this))
+  }
+
+  exportSensitiveSessionSnapshot(): string {
     const { fetch: _fetch, ...attrs } = this
     return JSON.stringify(attrs)
   }
@@ -297,16 +324,16 @@ export class Session {
   static deserialize(serialized: string, options: Pick<SessionOptions, 'fetch'> = {}): Session {
     const data = JSON.parse(serialized) as JsonMap
     const init: SessionOptions = {
-      providerSecret: String(data.provider_secret),
-      refreshToken: String(data.refresh_token),
+      providerSecret: stringValue(data.provider_secret),
+      refreshToken: stringValue(data.refresh_token),
       isTest: Boolean(data.is_test)
     }
     if (options.fetch) init.fetch = options.fetch
     const session = new Session(init)
     session.session_expiration = Number(data.session_expiration)
-    session.session_token = String(data.session_token)
+    if (data.session_token !== undefined) session.session_token = String(data.session_token)
     session.streamer_expiration = Number(data.streamer_expiration ?? 0)
-    session.streamer_token = String(data.streamer_token ?? '')
+    if (data.streamer_token !== undefined) session.streamer_token = String(data.streamer_token)
     session.dxlink_url = String(data.dxlink_url ?? '')
     if (data.headers && typeof data.headers === 'object' && !Array.isArray(data.headers)) {
       Object.assign(session.headers, data.headers as Record<string, string>)
@@ -510,6 +537,119 @@ export class Session {
   }
 }
 
+export class ReadOnlySession implements ReadOnlySessionLike {
+  private readonly session: Session
+
+  constructor(providerSecret?: string | SessionOptions | Session, refreshToken?: string, isTest?: boolean) {
+    this.session =
+      providerSecret instanceof Session ? providerSecret : new Session(providerSecret as string | SessionOptions | undefined, refreshToken, isTest)
+  }
+
+  static fromSession(session: Session): ReadOnlySession {
+    return new ReadOnlySession(session)
+  }
+
+  get is_test(): boolean {
+    return this.session.is_test
+  }
+
+  get proxy(): string | null {
+    return this.session.proxy
+  }
+
+  get base_url(): string {
+    return this.session.base_url
+  }
+
+  get fetch(): FetchLike {
+    return this.session.fetch
+  }
+
+  get headers(): Record<string, string> {
+    return this.session.headers
+  }
+
+  get session_expiration(): number {
+    return this.session.session_expiration
+  }
+
+  set session_expiration(value: number) {
+    this.session.session_expiration = value
+  }
+
+  get session_token(): string {
+    return this.session.session_token
+  }
+
+  set session_token(value: string) {
+    this.session.session_token = value
+  }
+
+  get streamer_expiration(): number {
+    return this.session.streamer_expiration
+  }
+
+  set streamer_expiration(value: number) {
+    this.session.streamer_expiration = value
+  }
+
+  get streamer_token(): string {
+    return this.session.streamer_token
+  }
+
+  set streamer_token(value: string) {
+    this.session.streamer_token = value
+  }
+
+  get dxlink_url(): string {
+    return this.session.dxlink_url
+  }
+
+  set dxlink_url(value: string) {
+    this.session.dxlink_url = value
+  }
+
+  serialize(): string {
+    return this.session.serialize()
+  }
+
+  async refresh(force = false): Promise<void> {
+    await this.session.refresh(force)
+  }
+
+  async refreshStreamerToken(): Promise<void> {
+    await this.session.refreshStreamerToken()
+  }
+
+  async refresh_streamer_token(): Promise<void> {
+    await this.session.refresh_streamer_token()
+  }
+
+  async validate(): Promise<boolean> {
+    return this.session.validate()
+  }
+
+  async a_validate(): Promise<boolean> {
+    return this.session.a_validate()
+  }
+
+  async a_refresh(): Promise<void> {
+    await this.session.a_refresh()
+  }
+
+  async _get(url: string, init: RequestInit & { params?: Record<string, unknown> } = {}): Promise<JsonMap> {
+    return this.session._get(url, init)
+  }
+
+  async _a_get(url: string, init: RequestInit & { params?: Record<string, unknown> } = {}): Promise<JsonMap> {
+    return this.session._a_get(url, init)
+  }
+
+  async _paginate<T>(factory: (item: JsonMap) => T, url: string, params: PageParams): Promise<T[]> {
+    return this.session._paginate(factory, url, params)
+  }
+}
+
 function normalizeOptions(providerSecret?: string | SessionOptions, refreshToken?: string, isTest?: boolean): SessionOptions {
   if (typeof providerSecret === 'object') {
     return { ...providerSecret }
@@ -538,3 +678,60 @@ function readBooleanEnv(key: string, fallback: boolean): boolean {
   if (value === undefined || value === '') return fallback
   return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase())
 }
+
+function stringValue(value: unknown): string {
+  return value === undefined || value === null ? '' : String(value)
+}
+
+function safeSessionSnapshot(session: Session): JsonMap {
+  return sanitizeSnapshot({
+    is_test: session.is_test,
+    proxy: session.proxy,
+    base_url: session.base_url,
+    headers: session.headers,
+    session_expiration: session.session_expiration,
+    streamer_expiration: session.streamer_expiration,
+    dxlink_url: session.dxlink_url
+  }) as JsonMap
+}
+
+function sanitizeSnapshot(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeSnapshot(item)).filter((item) => item !== undefined)
+  }
+  if (!value || typeof value !== 'object') return isSensitiveValue(value) ? undefined : value
+
+  const safe: JsonMap = {}
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    if (isSensitiveKey(key) || isSensitiveValue(nestedValue)) continue
+    const sanitizedValue = sanitizeSnapshot(nestedValue)
+    if (sanitizedValue !== undefined) safe[key] = sanitizedValue
+  }
+  return safe
+}
+
+function isSensitiveKey(key: string): boolean {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return SENSITIVE_KEY_PARTS.some((part) => normalized.includes(part))
+}
+
+function isSensitiveValue(value: unknown): boolean {
+  return typeof value === 'string' && /^bearer\s+/i.test(value)
+}
+
+const SENSITIVE_KEY_PARTS = [
+  'authorization',
+  'auth',
+  'bearer',
+  'cookie',
+  'setcookie',
+  'apikey',
+  'token',
+  'secret',
+  'credential',
+  'credentials',
+  'password',
+  'passwd',
+  'pwd',
+  'privatekey'
+]

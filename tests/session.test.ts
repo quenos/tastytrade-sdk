@@ -151,7 +151,7 @@ test('Session exposes Python snake_case aliases and streamer token refresh state
 
   await session.refresh_streamer_token()
   const customer = await session.get_customer()
-  const serialized = Session.deserialize(session.serialize(), { fetch })
+  const serialized = Session.deserialize(session.exportSensitiveSessionSnapshot(), { fetch })
 
   assert.equal(session.proxy, 'http://proxy.example')
   assert.equal(session.streamer_token, 'dx-token')
@@ -165,6 +165,116 @@ test('Session exposes Python snake_case aliases and streamer token refresh state
   assert.equal(serialized.streamer_token, 'dx-token')
   assert.equal(serialized.dxlink_url, 'wss://dx.example')
   assert.ok(requested.some((url) => url.endsWith('/api-quote-tokens')))
+})
+
+test('Session serialize excludes credential and bearer-token fields by default', () => {
+  const session = new Session({
+    providerSecret: 'provider-secret',
+    refreshToken: 'refresh-token',
+    fetch: async () => new Response(),
+    headers: {
+      Authorization: 'Bearer header-token',
+      'X-Api-Key': 'api-key-token',
+      'X-Trace-Id': 'trace-1'
+    }
+  })
+  session.session_token = 'session-token'
+  session.streamer_token = 'streamer-token'
+  session.dxlink_url = 'wss://dx.example'
+
+  const serialized = session.serialize()
+  const snapshot = JSON.parse(serialized) as Record<string, unknown>
+  const headers = snapshot.headers as Record<string, string>
+
+  assert.equal(snapshot.provider_secret, undefined)
+  assert.equal(snapshot.refresh_token, undefined)
+  assert.equal(snapshot.session_token, undefined)
+  assert.equal(snapshot.streamer_token, undefined)
+  assert.equal(headers.Authorization, undefined)
+  assert.equal(headers['X-Api-Key'], undefined)
+  assert.equal(headers['X-Trace-Id'], 'trace-1')
+  assert.equal(serialized.includes('provider-secret'), false)
+  assert.equal(serialized.includes('refresh-token'), false)
+  assert.equal(serialized.includes('session-token'), false)
+  assert.equal(serialized.includes('streamer-token'), false)
+  assert.equal(serialized.includes('header-token'), false)
+
+  const restored = Session.deserialize(serialized, { fetch: async () => new Response() })
+  assert.equal(restored.provider_secret, '')
+  assert.equal(restored.refresh_token, '')
+  assert.equal(restored.session_token, 'kyrieeleison')
+  assert.equal(restored.streamer_token, '')
+})
+
+test('Session serialize recursively excludes nested credentials and bearer-token headers', () => {
+  const session = new Session({
+    providerSecret: 'provider-secret',
+    refreshToken: 'refresh-token',
+    fetch: async () => new Response(),
+    headers: {
+      'X-Trace-Id': 'trace-1'
+    }
+  })
+  Object.assign(session.headers as Record<string, unknown>, {
+    nested: {
+      Authorization: 'Bearer nested-auth',
+      cookie: 'session=nested-cookie',
+      api_key: 'nested-api-key',
+      apikey: 'nested-apikey',
+      safe: 'safe-value',
+      deeper: [{ 'X-Api-Key': 'nested-x-api-key', value: 'kept' }]
+    },
+    array: [
+      { authorization: 'Bearer array-auth', value: 'array-safe' },
+      { 'set-cookie': 'array-cookie', keep: 'array-keep' }
+    ]
+  })
+
+  const serialized = session.serialize()
+  const snapshot = JSON.parse(serialized) as Record<string, unknown>
+  const headers = snapshot.headers as Record<string, unknown>
+  const nested = headers.nested as Record<string, unknown>
+  const deeper = nested.deeper as Array<Record<string, unknown>>
+  const array = headers.array as Array<Record<string, unknown>>
+
+  assert.equal(nested.Authorization, undefined)
+  assert.equal(nested.cookie, undefined)
+  assert.equal(nested.api_key, undefined)
+  assert.equal(nested.apikey, undefined)
+  assert.equal(nested.safe, 'safe-value')
+  assert.equal(deeper[0]?.['X-Api-Key'], undefined)
+  assert.equal(deeper[0]?.value, 'kept')
+  assert.equal(array[0]?.authorization, undefined)
+  assert.equal(array[0]?.value, 'array-safe')
+  assert.equal(array[1]?.['set-cookie'], undefined)
+  assert.equal(array[1]?.keep, 'array-keep')
+  assert.equal(serialized.includes('nested-auth'), false)
+  assert.equal(serialized.includes('nested-cookie'), false)
+  assert.equal(serialized.includes('nested-api-key'), false)
+  assert.equal(serialized.includes('nested-apikey'), false)
+  assert.equal(serialized.includes('nested-x-api-key'), false)
+  assert.equal(serialized.includes('array-auth'), false)
+  assert.equal(serialized.includes('array-cookie'), false)
+})
+
+test('Session explicit sensitive export retains credentials and tokens', () => {
+  const session = new Session({
+    providerSecret: 'provider-secret',
+    refreshToken: 'refresh-token',
+    fetch: async () => new Response()
+  })
+  session.session_token = 'session-token'
+  session.streamer_token = 'streamer-token'
+  session.headers.Authorization = 'Bearer header-token'
+
+  const snapshot = JSON.parse(session.exportSensitiveSessionSnapshot()) as Record<string, unknown>
+  const headers = snapshot.headers as Record<string, string>
+
+  assert.equal(snapshot.provider_secret, 'provider-secret')
+  assert.equal(snapshot.refresh_token, 'refresh-token')
+  assert.equal(snapshot.session_token, 'session-token')
+  assert.equal(snapshot.streamer_token, 'streamer-token')
+  assert.equal(headers.Authorization, 'Bearer header-token')
 })
 
 function restoreEnv(key: string, value: string | undefined): void {
