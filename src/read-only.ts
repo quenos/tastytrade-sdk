@@ -34,9 +34,9 @@ import {
   type WebSocketFactory
 } from './streamer.js'
 import {
-  ReadOnlySession as InternalReadOnlySession,
+  LowLevelReadOnlySession as InternalReadOnlySession,
   Session,
-  type ReadOnlySessionLike as InternalReadOnlySessionLike,
+  type LowLevelReadOnlySessionLike as InternalReadOnlySessionLike,
   type SessionOptions
 } from './session.js'
 import type { DecimalValue } from './decimal.js'

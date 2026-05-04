@@ -253,7 +253,10 @@ test('Account complex order read/delete/history methods match tastyware contract
   assert.equal(lastCall(session).url, '/accounts/5WT/complex-orders/42')
   assert.equal(fetched.orders[0]?.data.price, '-1')
 
-  await account.deleteComplexOrder(session as unknown as Session, 42)
+  await account.deleteComplexOrder(session as unknown as Session, 42, {
+    mode: 'live',
+    confirm: 'DELETE_LIVE_COMPLEX_ORDER'
+  })
   assert.deepEqual(lastCall(session), { method: 'delete', url: '/accounts/5WT/complex-orders/42', init: {} })
 
   const history = await account.getComplexOrderHistory(session as unknown as Session, {
@@ -294,7 +297,10 @@ test('Account placeOrder and replaceOrder serialize bodies and wrap signed respo
   assert.equal(placeBody.price, '1.25')
   assert.equal(placeBody['price-effect'], 'Debit')
 
-  const replaced = await account.replaceOrder(session as unknown as Session, 99, order)
+  const replaced = await account.replaceOrder(session as unknown as Session, 99, order, {
+    mode: 'live',
+    confirm: 'REPLACE_LIVE_ORDER'
+  })
   assert.equal(replaced.data.price, '-1.10')
   const replaceCall = lastCall(session)
   assert.equal(replaceCall.method, 'put')
@@ -303,6 +309,82 @@ test('Account placeOrder and replaceOrder serialize bodies and wrap signed respo
   assert.equal('legs' in replaceBody, false)
   assert.equal(replaceBody.price, '1.25')
   assert.equal(replaceBody['price-effect'], 'Debit')
+})
+
+test('Account live replace/delete methods require explicit confirmation before network calls', async () => {
+  const account = new Account({ 'account-number': '5WT' })
+  const session = new MockSession({
+    '/accounts/5WT/orders/99': { price: '1.10', 'price-effect': 'Debit' }
+  })
+  const order = newOrder()
+  const invalidDeleteOrderIntent = {
+    mode: 'live',
+    confirm: 'DELETE_LIVE_COMPLEX_ORDER'
+  } as unknown as Parameters<Account['deleteOrder']>[2]
+  const invalidDeleteComplexOrderIntent = {
+    mode: 'live',
+    confirm: 'DELETE_LIVE_ORDER'
+  } as unknown as Parameters<Account['deleteComplexOrder']>[2]
+  const invalidReplaceOrderIntent = {
+    mode: 'live',
+    confirm: 'DELETE_LIVE_ORDER'
+  } as unknown as Parameters<Account['replaceOrder']>[3]
+
+  await assert.rejects(
+    // @ts-expect-error omitted intent is intentionally rejected at runtime.
+    account.deleteOrder(session as unknown as Session, 11),
+    /Live order deletion requires \{ mode: 'live', confirm: 'DELETE_LIVE_ORDER' \}/
+  )
+  await assert.rejects(
+    account.deleteOrder(session as unknown as Session, 11, invalidDeleteOrderIntent),
+    /Live order deletion requires \{ mode: 'live', confirm: 'DELETE_LIVE_ORDER' \}/
+  )
+  await assert.rejects(
+    // @ts-expect-error omitted intent is intentionally rejected at runtime.
+    account.deleteComplexOrder(session as unknown as Session, 42),
+    /Live complex order deletion requires \{ mode: 'live', confirm: 'DELETE_LIVE_COMPLEX_ORDER' \}/
+  )
+  await assert.rejects(
+    account.deleteComplexOrder(session as unknown as Session, 42, invalidDeleteComplexOrderIntent),
+    /Live complex order deletion requires \{ mode: 'live', confirm: 'DELETE_LIVE_COMPLEX_ORDER' \}/
+  )
+  await assert.rejects(
+    // @ts-expect-error omitted intent is intentionally rejected at runtime.
+    account.replaceOrder(session as unknown as Session, 99, order),
+    /Live order replacement requires \{ mode: 'live', confirm: 'REPLACE_LIVE_ORDER' \}/
+  )
+  await assert.rejects(
+    account.replaceOrder(session as unknown as Session, 99, order, invalidReplaceOrderIntent),
+    /Live order replacement requires \{ mode: 'live', confirm: 'REPLACE_LIVE_ORDER' \}/
+  )
+  assert.equal(session.calls.filter((call) => call.method === 'delete' || call.method === 'put').length, 0)
+
+  await account.deleteOrder(session as unknown as Session, 11, {
+    mode: 'live',
+    confirm: 'DELETE_LIVE_ORDER'
+  })
+  assert.deepEqual(lastCall(session), { method: 'delete', url: '/accounts/5WT/orders/11', init: {} })
+
+  await account.deleteComplexOrder(session as unknown as Session, 42, {
+    mode: 'live',
+    confirm: 'DELETE_LIVE_COMPLEX_ORDER'
+  })
+  assert.deepEqual(lastCall(session), { method: 'delete', url: '/accounts/5WT/complex-orders/42', init: {} })
+
+  const replaced = await account.replaceOrder(session as unknown as Session, 99, order, {
+    mode: 'live',
+    confirm: 'REPLACE_LIVE_ORDER'
+  })
+  assert.equal(replaced.data.price, '-1.10')
+  const mutationCalls = session.calls.filter((call) => call.method === 'delete' || call.method === 'put')
+  assert.deepEqual(
+    mutationCalls.map((call) => ({ method: call.method, url: call.url })),
+    [
+      { method: 'delete', url: '/accounts/5WT/orders/11' },
+      { method: 'delete', url: '/accounts/5WT/complex-orders/42' },
+      { method: 'put', url: '/accounts/5WT/orders/99' }
+    ]
+  )
 })
 
 test('Account placeOrder defaults to dry-run and rejects legacy boolean live placement', async () => {

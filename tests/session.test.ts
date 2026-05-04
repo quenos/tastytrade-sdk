@@ -2,6 +2,68 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { Address, Customer, CustomerAccountType, CustomerSuitability, Session } from '../src/index.js'
+import * as ReadOnlyFacade from '../src/read-only.js'
+import * as SessionEntrypoint from '../src/session.js'
+
+const importPackage = new Function('specifier', 'return import(specifier)') as (
+  specifier: string
+) => Promise<Record<string, unknown>>
+
+test('package session subpath exposes low-level session plumbing, not the read-only facade', async () => {
+  const rootExported = await importPackage('tastytrade-ts-sdk')
+  const sessionExported = await importPackage('tastytrade-ts-sdk/session')
+  const readOnlyExported = await importPackage('tastytrade-ts-sdk/read-only')
+
+  assert.equal(sessionExported.Session, SessionEntrypoint.Session)
+  assert.equal(sessionExported.ReadOnlySession, SessionEntrypoint.ReadOnlySession)
+  assert.equal(sessionExported.LowLevelReadOnlySession, SessionEntrypoint.LowLevelReadOnlySession)
+  assert.equal(sessionExported.ReadOnlySession, sessionExported.LowLevelReadOnlySession)
+  assert.notEqual(sessionExported.ReadOnlySession, readOnlyExported.ReadOnlySession)
+  assert.equal('ReadOnlySession' in rootExported, false)
+
+  const forbidden = [
+    'getMarketDataByType',
+    'getOptionChain',
+    'DXLinkStreamer',
+    'Quote',
+    'Greeks',
+    'Candle',
+    'Account',
+    'NewOrder',
+    'placeOrder'
+  ]
+
+  for (const name of forbidden) {
+    assert.equal(name in sessionExported, false, `${name} should not be exported from session subpath`)
+  }
+})
+
+test('session subpath ReadOnlySession is low-level and differs from hardened facade at runtime', () => {
+  const lowLevel = new SessionEntrypoint.ReadOnlySession({
+    providerSecret: 'secret',
+    refreshToken: 'refresh',
+    fetch: async () => new Response()
+  })
+  const facade = new ReadOnlyFacade.ReadOnlySession({
+    providerSecret: 'secret',
+    refreshToken: 'refresh',
+    fetch: async () => new Response()
+  })
+
+  assert.equal(typeof lowLevel._get, 'function')
+  assert.equal(typeof lowLevel._a_get, 'function')
+  assert.equal(typeof lowLevel._paginate, 'function')
+  assert.equal(typeof lowLevel.fetch, 'function')
+  assert.equal(typeof lowLevel.headers, 'object')
+  assert.equal(typeof lowLevel.session_token, 'string')
+  assert.equal(typeof lowLevel.streamer_token, 'string')
+
+  assert.equal(typeof (facade as unknown as { _get?: unknown })._get, 'undefined')
+  assert.equal(typeof (facade as unknown as { fetch?: unknown }).fetch, 'undefined')
+  assert.equal(typeof (facade as unknown as { headers?: unknown }).headers, 'undefined')
+  assert.equal(typeof (facade as unknown as { session_token?: unknown }).session_token, 'undefined')
+  assert.equal(typeof (facade as unknown as { streamer_token?: unknown }).streamer_token, 'undefined')
+})
 
 test('Session refresh posts OAuth payload without Authorization header', async () => {
   const calls: Array<{ url: string; init: RequestInit | undefined }> = []

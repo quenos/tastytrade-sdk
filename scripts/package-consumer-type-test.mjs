@@ -76,6 +76,45 @@ try {
   )
 
   writeFileSync(
+    join(sourceDir, 'session-subpath-consumer.ts'),
+    `
+      import { Session as RootSession } from 'tastytrade-ts-sdk'
+      import {
+        LowLevelReadOnlySession,
+        ReadOnlySession,
+        Session,
+        type LowLevelReadOnlySessionLike,
+        type ReadOnlySessionLike
+      } from 'tastytrade-ts-sdk/session'
+      import { ReadOnlySession as FacadeReadOnlySession } from 'tastytrade-ts-sdk/read-only'
+
+      type Assert<T extends true> = T
+
+      declare const session: Session
+      declare const rootSession: RootSession
+
+      const lowLevel: ReadOnlySession = ReadOnlySession.fromSession(session)
+      const clearerLowLevel: LowLevelReadOnlySession = lowLevel
+      const lowLevelLike: LowLevelReadOnlySessionLike = clearerLowLevel
+      const compatibilityLike: ReadOnlySessionLike = clearerLowLevel
+      const facade: FacadeReadOnlySession = FacadeReadOnlySession.fromSession(rootSession)
+
+      lowLevelLike.headers.Authorization = 'Bearer token'
+      lowLevelLike.session_token satisfies string
+      lowLevelLike.streamer_token satisfies string
+      lowLevelLike.fetch satisfies typeof globalThis.fetch
+      lowLevelLike._get('/market-data/by-type') satisfies Promise<Record<string, unknown>>
+      compatibilityLike._paginate((item) => item, '/things', { 'page-offset': null, 'per-page': 100 })
+
+      type _FacadeDoesNotExposeRawGet = Assert<'_get' extends keyof FacadeReadOnlySession ? false : true>
+      type _LowLevelExposesRawGet = Assert<'_get' extends keyof LowLevelReadOnlySessionLike ? true : false>
+      type _LowLevelExposesTokens = Assert<'session_token' extends keyof LowLevelReadOnlySessionLike ? true : false>
+
+      facade satisfies FacadeReadOnlySession
+    `
+  )
+
+  writeFileSync(
     join(sourceDir, 'read-only-negative.ts'),
     `
       import type { ReadOnlySession } from 'tastytrade-ts-sdk/read-only'
@@ -143,6 +182,40 @@ try {
       session._put
       // @ts-expect-error read-only session must not expose write internals.
       session._delete
+    `
+  )
+
+  writeFileSync(
+    join(sourceDir, 'session-subpath-negative.ts'),
+    `
+      import * as session from 'tastytrade-ts-sdk/session'
+      import type { ReadOnlySession as FacadeReadOnlySession } from 'tastytrade-ts-sdk/read-only'
+
+      type AssertNever<T extends never> = T
+
+      type ForbiddenSessionExports =
+        | 'getMarketDataByType'
+        | 'getOptionChain'
+        | 'DXLinkStreamer'
+        | 'Quote'
+        | 'Greeks'
+        | 'Candle'
+        | 'Account'
+        | 'NewOrder'
+        | 'placeOrder'
+
+      type _NoFacadeExportsFromSession = AssertNever<Extract<ForbiddenSessionExports, keyof typeof session>>
+
+      declare const facade: FacadeReadOnlySession
+
+      // @ts-expect-error session subpath must not expose read-only facade helpers.
+      session.getOptionChain
+      // @ts-expect-error session subpath must not expose read-only facade streamer.
+      session.DXLinkStreamer
+      // @ts-expect-error hardened facade is not assignable to the low-level session plumbing contract.
+      const lowLevel: session.ReadOnlySession = facade
+
+      lowLevel
     `
   )
 

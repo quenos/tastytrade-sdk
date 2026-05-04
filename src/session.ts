@@ -18,6 +18,18 @@ export interface PageParams {
   [key: string]: unknown
 }
 
+/**
+ * Low-level read-capable session plumbing used by SDK internals.
+ *
+ * This type intentionally includes token-bearing and raw request members such
+ * as `headers`, `session_token`, `streamer_token`, `fetch`, and `_get`.
+ * Application-facing scanner code should import `ReadOnlySession` from
+ * `tastytrade-ts-sdk/read-only` instead.
+ *
+ * @deprecated Prefer the clearer `LowLevelReadOnlySessionLike` name for this
+ * session plumbing contract, or the `tastytrade-ts-sdk/read-only` facade for
+ * constrained application-facing read-only access.
+ */
 export interface ReadOnlySessionLike {
   readonly is_test: boolean
   readonly proxy: string | null
@@ -40,6 +52,8 @@ export interface ReadOnlySessionLike {
   _a_get(url: string, init?: RequestInit & { params?: Record<string, unknown> }): Promise<JsonMap>
   _paginate<T>(factory: (item: JsonMap) => T, url: string, params: PageParams): Promise<T[]>
 }
+
+export type LowLevelReadOnlySessionLike = ReadOnlySessionLike
 
 type DateInput = Date | string
 
@@ -554,6 +568,19 @@ export class Session {
   }
 }
 
+/**
+ * Low-level read-only session adapter for modules that need raw session
+ * plumbing without write helpers.
+ *
+ * This is not the hardened application-facing read-only facade. It exposes
+ * token-bearing fields and raw request helpers required by lower-level SDK
+ * modules. Scanner applications should import `ReadOnlySession` from
+ * `tastytrade-ts-sdk/read-only`, not from `tastytrade-ts-sdk/session`.
+ *
+ * @deprecated Prefer the clearer `LowLevelReadOnlySession` alias when using
+ * this lower-level adapter directly. For constrained scanner app surfaces, use
+ * `ReadOnlySession` from `tastytrade-ts-sdk/read-only`.
+ */
 export class ReadOnlySession implements ReadOnlySessionLike {
   private readonly session: Session
 
@@ -666,6 +693,8 @@ export class ReadOnlySession implements ReadOnlySessionLike {
     return this.session._paginate(factory, url, params)
   }
 }
+
+export { ReadOnlySession as LowLevelReadOnlySession }
 
 function normalizeOptions(providerSecret?: string | SessionOptions, refreshToken?: string, isTest?: boolean): SessionOptions {
   if (typeof providerSecret === 'object') {

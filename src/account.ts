@@ -29,6 +29,10 @@ export type OrderPlacementOptions =
 
 type OrderPlacementIntent = true | OrderPlacementOptions
 
+export type DeleteOrderIntent = { mode: 'live'; confirm: 'DELETE_LIVE_ORDER' }
+export type DeleteComplexOrderIntent = { mode: 'live'; confirm: 'DELETE_LIVE_COMPLEX_ORDER' }
+export type ReplaceOrderIntent = { mode: 'live'; confirm: 'REPLACE_LIVE_ORDER' }
+
 export class AccountBalance {
   [key: string]: unknown
   readonly data: JsonMap
@@ -467,28 +471,30 @@ export class Account {
     return this.getOrder(session, orderId)
   }
 
-  async deleteComplexOrder(session: Session, orderId: number): Promise<void> {
+  async deleteComplexOrder(session: Session, orderId: number, intent: DeleteComplexOrderIntent): Promise<void> {
+    requireLiveOrderMutationIntent(intent, 'DELETE_LIVE_COMPLEX_ORDER', 'complex order deletion')
     await session._delete(`/accounts/${this.account_number}/complex-orders/${orderId}`)
   }
 
-  async delete_complex_order(session: Session, orderId: number): Promise<void> {
-    return this.deleteComplexOrder(session, orderId)
+  async delete_complex_order(session: Session, orderId: number, intent: DeleteComplexOrderIntent): Promise<void> {
+    return this.deleteComplexOrder(session, orderId, intent)
   }
 
-  async a_delete_complex_order(session: Session, orderId: number): Promise<void> {
-    return this.deleteComplexOrder(session, orderId)
+  async a_delete_complex_order(session: Session, orderId: number, intent: DeleteComplexOrderIntent): Promise<void> {
+    return this.deleteComplexOrder(session, orderId, intent)
   }
 
-  async deleteOrder(session: Session, orderId: number): Promise<void> {
+  async deleteOrder(session: Session, orderId: number, intent: DeleteOrderIntent): Promise<void> {
+    requireLiveOrderMutationIntent(intent, 'DELETE_LIVE_ORDER', 'order deletion')
     await session._delete(`/accounts/${this.account_number}/orders/${orderId}`)
   }
 
-  async delete_order(session: Session, orderId: number): Promise<void> {
-    return this.deleteOrder(session, orderId)
+  async delete_order(session: Session, orderId: number, intent: DeleteOrderIntent): Promise<void> {
+    return this.deleteOrder(session, orderId, intent)
   }
 
-  async a_delete_order(session: Session, orderId: number): Promise<void> {
-    return this.deleteOrder(session, orderId)
+  async a_delete_order(session: Session, orderId: number, intent: DeleteOrderIntent): Promise<void> {
+    return this.deleteOrder(session, orderId, intent)
   }
 
   async getOrderHistory(
@@ -607,19 +613,35 @@ export class Account {
     return this.placeComplexOrder(session, order, intent)
   }
 
-  async replaceOrder(session: Session, oldOrderId: number, newOrder: NewOrder): Promise<PlacedOrder> {
+  async replaceOrder(
+    session: Session,
+    oldOrderId: number,
+    newOrder: NewOrder,
+    intent: ReplaceOrderIntent
+  ): Promise<PlacedOrder> {
+    requireLiveOrderMutationIntent(intent, 'REPLACE_LIVE_ORDER', 'order replacement')
     const data = await session._put(`/accounts/${this.account_number}/orders/${oldOrderId}`, {
       body: newOrder.toApiJSON({ exclude: ['legs'] })
     })
     return new PlacedOrder(data)
   }
 
-  async replace_order(session: Session, oldOrderId: number, newOrder: NewOrder): Promise<PlacedOrder> {
-    return this.replaceOrder(session, oldOrderId, newOrder)
+  async replace_order(
+    session: Session,
+    oldOrderId: number,
+    newOrder: NewOrder,
+    intent: ReplaceOrderIntent
+  ): Promise<PlacedOrder> {
+    return this.replaceOrder(session, oldOrderId, newOrder, intent)
   }
 
-  async a_replace_order(session: Session, oldOrderId: number, newOrder: NewOrder): Promise<PlacedOrder> {
-    return this.replaceOrder(session, oldOrderId, newOrder)
+  async a_replace_order(
+    session: Session,
+    oldOrderId: number,
+    newOrder: NewOrder,
+    intent: ReplaceOrderIntent
+  ): Promise<PlacedOrder> {
+    return this.replaceOrder(session, oldOrderId, newOrder, intent)
   }
 }
 
@@ -660,6 +682,15 @@ function isDryRunOrderPlacement(intent: OrderPlacementIntent | false): boolean {
 
 function liveOrderConfirmationError(): TypeError {
   return new TypeError("Live order placement requires { mode: 'live', confirm: 'PLACE_LIVE_ORDER' }.")
+}
+
+function requireLiveOrderMutationIntent(intent: unknown, confirm: string, operation: string): void {
+  if (isObjectRecord(intent) && intent.mode === 'live' && intent.confirm === confirm) return
+  throw new TypeError(`Live ${operation} requires { mode: 'live', confirm: '${confirm}' }.`)
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function todayInNewYork(): string {

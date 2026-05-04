@@ -43,6 +43,9 @@ jobs:
       - name: Run package smoke test
         run: npm run test:package
 
+      - name: Check package dry-run contents
+        run: npm run test:pack
+
       - name: Run package consumer type test
         run: npm run test:types
 

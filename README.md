@@ -61,7 +61,14 @@ npm install tastytrade-ts-sdk
 Install from a local checkout while developing this SDK:
 
 ```sh
-npm install /Users/coenkuijpers/projects/tastytrade-ts-sdk
+npm install /path/to/tastytrade-ts-sdk
+```
+
+Or test the same artifact shape that npm publishing will use:
+
+```sh
+npm pack --pack-destination /tmp/tastytrade-pack
+npm install /tmp/tastytrade-pack/tastytrade-ts-sdk-0.1.0.tgz
 ```
 
 Install from GitHub when you need a commit directly. This is supported because
@@ -263,11 +270,22 @@ and cancellation; paper trading mutation; watchlist mutation; and raw write
 helpers. Root imports from `tastytrade-ts-sdk` expose broader SDK capabilities
 and should not be used by Income Navigator.
 
+`tastytrade-ts-sdk/session` is a public low-level session plumbing subpath. It
+exports `Session` plus internal-style read-capable session adapters such as
+`LowLevelReadOnlySession` and the compatibility name `ReadOnlySession`. Those
+session-level adapters are not the constrained read-only facade: they expose raw
+request helpers, mutable headers, and bearer-token state for lower-level SDK
+modules. Scanner apps should import `ReadOnlySession` only from
+`tastytrade-ts-sdk/read-only`.
+
 `Session.serialize()` and `ReadOnlySession.serialize()` are safe and redacted by
 default. `exportSensitiveSessionSnapshot()` intentionally contains secrets and
 bearer tokens for explicit sensitive persistence or handoff workflows. Live
-order placement requires an explicit intent object:
-`{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' }`.
+order placement, replacement, and cancellation require explicit intent objects:
+`{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' }`,
+`{ mode: 'live', confirm: 'REPLACE_LIVE_ORDER' }`,
+`{ mode: 'live', confirm: 'DELETE_LIVE_ORDER' }`, or
+`{ mode: 'live', confirm: 'DELETE_LIVE_COMPLEX_ORDER' }`.
 
 ## Distribution and Release
 
@@ -286,17 +304,17 @@ npm run lint
 npm run format:check
 npm test
 npm run test:package
+npm run test:pack
 npm run test:types
 npm audit --omit=dev --audit-level=moderate
-npm pack --dry-run --json
 ```
 
 Release checklist:
 
 - Confirm the version and `CHANGELOG.md` describe the release.
 - Confirm CI is green on Node.js 20 and 22.
-- Confirm lint, formatting, tests, package smoke tests, consumer type tests, and production dependency audit pass.
-- Inspect `npm pack --dry-run --json` output so only intended files are distributed.
+- Confirm lint, formatting, tests, package smoke tests, dry-run package contents, consumer type tests, and production dependency audit pass.
+- Run `npm run test:pack` so the dry-run package contains only the intended `dist/src`, README, changelog, license, package metadata, and `.env.example` files.
 - Publish to npm only after all release gates pass.
 
 ## Local Credentials
