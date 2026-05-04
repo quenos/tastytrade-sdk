@@ -5,6 +5,24 @@ TypeScript port of [`tastyware/tastytrade`](https://github.com/tastyware/tastytr
 Behavioral source of truth is tastyware. The official `@tastytrade/api` SDK can be
 used internally only where tests prove the behavior matches tastyware.
 
+## Compliance and Risk Notice
+
+This project is unofficial and is not endorsed, supported, or maintained by
+tastytrade or tastyware. It is provided for educational purposes only and does
+not provide investment, financial, legal, tax, or trading advice.
+
+Use this software at your own risk. Real trading accounts can lose money. To
+the maximum extent permitted by law, the authors and contributors provide this
+software without warranty and accept no liability for losses, damages, API
+access issues, data issues, account activity, or other consequences from its
+use.
+
+You are responsible for complying with tastytrade API terms and any market-data
+or account-data restrictions that apply to you, including not redistributing
+market or account data without permission. You are also responsible for storing,
+handling, and sharing credentials, refresh tokens, access tokens, account
+numbers, and other sensitive data securely.
+
 Current implemented slice:
 
 - tastyware-compatible response/error helpers
