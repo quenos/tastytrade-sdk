@@ -23,6 +23,13 @@ market or account data without permission. You are also responsible for storing,
 handling, and sharing credentials, refresh tokens, access tokens, account
 numbers, and other sensitive data securely.
 
+## API Stability
+
+This package is pre-1.0. Public APIs, exported types, subpath exports, and
+tastyware compatibility details can change before a stable release. The project
+aims to preserve tastyware-compatible behavior for the implemented surface, but
+only behavior covered by tests and release gates should be treated as supported.
+
 Current implemented slice:
 
 - tastyware-compatible response/error helpers
@@ -45,13 +52,20 @@ npm run test:e2e
 
 Requires Node.js 20 or newer.
 
-Install from a local checkout:
+Install from npm for production once a release has passed the release gates:
+
+```sh
+npm install tastytrade-ts-sdk
+```
+
+Install from a local checkout while developing this SDK:
 
 ```sh
 npm install /Users/coenkuijpers/projects/tastytrade-ts-sdk
 ```
 
-Install from GitHub:
+Install from GitHub when you need a commit directly. This is supported because
+the package `prepare` lifecycle builds `dist` during dependency installation:
 
 ```sh
 npm install github:Quenos/tastytrade-sdk
@@ -255,6 +269,36 @@ bearer tokens for explicit sensitive persistence or handoff workflows. Live
 order placement requires an explicit intent object:
 `{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' }`.
 
+## Distribution and Release
+
+The recommended production distribution path is npm. GitHub dependencies are
+supported for commit-pinned installs because `prepare` builds `dist`, but npm
+releases provide the clearest production contract. Local tarballs are for
+testing package contents and consumer install behavior before publishing.
+
+This package is not production-ready until the release gates pass for the exact
+commit being released:
+
+```sh
+npm ci
+npm run build
+npm run lint
+npm run format:check
+npm test
+npm run test:package
+npm run test:types
+npm audit --omit=dev --audit-level=moderate
+npm pack --dry-run --json
+```
+
+Release checklist:
+
+- Confirm the version and `CHANGELOG.md` describe the release.
+- Confirm CI is green on Node.js 20 and 22.
+- Confirm lint, formatting, tests, package smoke tests, consumer type tests, and production dependency audit pass.
+- Inspect `npm pack --dry-run --json` output so only intended files are distributed.
+- Publish to npm only after all release gates pass.
+
 ## Local Credentials
 
 Copy `.env.example` to `.env` and fill in your OAuth client secret and refresh
@@ -302,4 +346,12 @@ TT_ACCOUNT_ID=...
 TT_API_CLIENT_SECRET=...
 TT_REFRESH_TOKEN=...
 # TT_IS_TEST=true for sandbox/cert credentials
+```
+
+Live E2E tests must not place, replace, cancel, preview, or dry-run orders. Any
+future mutation E2E tests must live in an explicit opt-in mutation suite and
+must be guarded by:
+
+```sh
+TT_ENABLE_MUTATION_E2E=I_UNDERSTAND_THIS_CAN_AFFECT_A_REAL_ACCOUNT
 ```

@@ -24,6 +24,75 @@ test('Session refresh posts OAuth payload without Authorization header', async (
   assert.equal(session.headers.Authorization, 'Bearer token-1')
 })
 
+test('Session coalesces concurrent refreshes from expired REST requests', async () => {
+  const oauthResponse = deferred<Response>()
+  const requestAuthorizationHeaders: Array<string | undefined> = []
+  let oauthCalls = 0
+  const fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    if (String(url).endsWith('/oauth/token')) {
+      oauthCalls += 1
+      return oauthResponse.promise
+    }
+    requestAuthorizationHeaders.push((init?.headers as Record<string, string> | undefined)?.Authorization)
+    return new Response(JSON.stringify({ data: { ok: true } }), { status: 200 })
+  }
+  const session = new Session({ providerSecret: 'secret', refreshToken: 'refresh', fetch })
+  session.session_expiration = 0
+
+  const requests = [session._get('/things/1'), session._get('/things/2'), session._get('/things/3')]
+  await Promise.resolve()
+  assert.equal(oauthCalls, 1)
+
+  oauthResponse.resolve(new Response(JSON.stringify({ access_token: 'token-1', expires_in: 900 }), { status: 200 }))
+  const responses = await Promise.all(requests)
+
+  assert.deepEqual(responses, [{ ok: true }, { ok: true }, { ok: true }])
+  assert.deepEqual(requestAuthorizationHeaders, ['Bearer token-1', 'Bearer token-1', 'Bearer token-1'])
+})
+
+test('Session force refresh bypasses unexpired token', async () => {
+  let oauthCalls = 0
+  const fetch = async (url: string | URL | Request): Promise<Response> => {
+    if (String(url).endsWith('/oauth/token')) {
+      oauthCalls += 1
+      return new Response(JSON.stringify({ access_token: `token-${oauthCalls}`, expires_in: 900 }), { status: 200 })
+    }
+    throw new Error(`Unexpected request: ${String(url)}`)
+  }
+  const session = new Session({ providerSecret: 'secret', refreshToken: 'refresh', fetch })
+  session.session_expiration = Date.now() / 1000 + 900
+  session.session_token = 'old-token'
+  session.headers.Authorization = 'Bearer old-token'
+
+  await session.refresh(true)
+
+  assert.equal(oauthCalls, 1)
+  assert.equal(session.session_token, 'token-1')
+  assert.equal(session.headers.Authorization, 'Bearer token-1')
+})
+
+test('Session clears coalesced refresh promise after failure so retry can proceed', async () => {
+  let oauthCalls = 0
+  const fetch = async (url: string | URL | Request): Promise<Response> => {
+    if (String(url).endsWith('/oauth/token')) {
+      oauthCalls += 1
+      if (oauthCalls === 1) {
+        return new Response(JSON.stringify({ error_code: 'invalid_grant', error_description: 'try again' }), { status: 401 })
+      }
+      return new Response(JSON.stringify({ access_token: 'retry-token', expires_in: 900 }), { status: 200 })
+    }
+    throw new Error(`Unexpected request: ${String(url)}`)
+  }
+  const session = new Session({ providerSecret: 'secret', refreshToken: 'refresh', fetch })
+  session.session_expiration = 0
+
+  await assert.rejects(() => session.refresh())
+  await session.refresh()
+
+  assert.equal(oauthCalls, 2)
+  assert.equal(session.headers.Authorization, 'Bearer retry-token')
+})
+
 test('Session omits Accept-Version for certification sessions', () => {
   const session = new Session({ providerSecret: 'secret', refreshToken: 'refresh', isTest: true, fetch: async () => new Response() })
 
@@ -280,4 +349,18 @@ test('Session explicit sensitive export retains credentials and tokens', () => {
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) delete process.env[key]
   else process.env[key] = value
+}
+
+function deferred<T>(): {
+  promise: Promise<T>
+  resolve: (value: T | PromiseLike<T>) => void
+  reject: (reason?: unknown) => void
+} {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
 }

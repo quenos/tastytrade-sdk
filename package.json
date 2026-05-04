@@ -97,13 +97,21 @@
   },
   "files": [
     "dist/src",
+    ".env.example",
+    "CHANGELOG.md",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run lint && npm run format:check && npm test && npm run test:package && npm run test:types",
+    "lint": "biome lint src tests scripts",
+    "format:check": "biome format package.json biome.json scripts/package-consumer-type-test.mjs scripts/package-smoke-test.mjs",
     "test": "npm run build && node --test dist/tests/*.test.js",
     "test:package": "npm run build && node scripts/package-smoke-test.mjs",
+    "test:types": "npm run build && node scripts/package-consumer-type-test.mjs",
     "test:e2e": "npm run build && node --import=./scripts/load-env.mjs --test dist/tests/e2e/*.test.js"
   },
   "keywords": [
@@ -117,6 +125,7 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
     "@types/node": "^20.17.57",
     "@types/ws": "^8.18.1",
     "typescript": "^5.8.3",

@@ -280,6 +280,8 @@ export class Customer extends SessionModel {
 }
 
 export class Session {
+  #refreshPromise: Promise<void> | null = null
+
   readonly is_test: boolean
   readonly proxy: string | null
   readonly provider_secret: string
@@ -348,6 +350,15 @@ export class Session {
   }
 
   async refresh(force = false): Promise<void> {
+    if (!force && Date.now() / 1000 < this.session_expiration - 60) return
+    if (this.#refreshPromise) return this.#refreshPromise
+    this.#refreshPromise = this.performRefresh(force).finally(() => {
+      this.#refreshPromise = null
+    })
+    return this.#refreshPromise
+  }
+
+  private async performRefresh(force = false): Promise<void> {
     if (!force && Date.now() / 1000 < this.session_expiration - 60) return
     const response = await this.fetch(this.url('/oauth/token'), {
       method: 'POST',
