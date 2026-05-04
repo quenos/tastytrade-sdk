@@ -52,7 +52,9 @@ npm run test:e2e
 
 Requires Node.js 20 or newer.
 
-Install from npm for production once a release has passed the release gates:
+For future published npm releases, install from the npm registry only after the
+release has passed the release gates and registry publication has been
+smoke-tested:
 
 ```sh
 npm install tastytrade-ts-sdk
@@ -71,11 +73,12 @@ npm pack --pack-destination /tmp/tastytrade-pack
 npm install /tmp/tastytrade-pack/tastytrade-ts-sdk-0.1.0.tgz
 ```
 
-Install from GitHub when you need a commit directly. This is supported because
-the package `prepare` lifecycle builds `dist` during dependency installation:
+Install from GitHub when you need a specific commit or tag directly. This is
+supported because the package `prepare` lifecycle builds `dist` during
+dependency installation:
 
 ```sh
-npm install github:Quenos/tastytrade-sdk
+npm install github:Quenos/tastytrade-sdk#<commit-or-tag>
 ```
 
 Account, balance, position, option-chain, and market-data calls use REST and do
@@ -223,9 +226,9 @@ quote tokens are not fetched when `TT_IS_TEST=true`.
 
 ## Read-only market-data usage
 
-Scanner apps such as Income Navigator should import from the read-only
-entrypoint so the application surface is limited to market data, option-chain,
-calendar, metrics, search, and dxLink streaming APIs:
+Read-only scanner apps should import from the read-only entrypoint so the
+application surface is limited to market data, option-chain, calendar, metrics,
+search, and dxLink streaming APIs:
 
 ```ts
 import WebSocket from 'ws'
@@ -268,7 +271,7 @@ try {
 The read-only entrypoint intentionally excludes order placement, replacement,
 and cancellation; paper trading mutation; watchlist mutation; and raw write
 helpers. Root imports from `tastytrade-ts-sdk` expose broader SDK capabilities
-and should not be used by Income Navigator.
+and should not be used by read-only scanner apps.
 
 `tastytrade-ts-sdk/session` is a public low-level session plumbing subpath. It
 exports `Session` plus internal-style read-capable session adapters such as
@@ -286,13 +289,18 @@ order placement, replacement, and cancellation require explicit intent objects:
 `{ mode: 'live', confirm: 'REPLACE_LIVE_ORDER' }`,
 `{ mode: 'live', confirm: 'DELETE_LIVE_ORDER' }`, or
 `{ mode: 'live', confirm: 'DELETE_LIVE_COMPLEX_ORDER' }`.
+Omitting the placement intent defaults to dry-run order preview. Where legacy
+order-placement calls still accept boolean `true`, it is retained only as
+dry-run intent and does not confirm live order placement.
 
 ## Distribution and Release
 
-The recommended production distribution path is npm. GitHub dependencies are
-supported for commit-pinned installs because `prepare` builds `dist`, but npm
-releases provide the clearest production contract. Local tarballs are for
-testing package contents and consumer install behavior before publishing.
+The intended production distribution path is npm after a published registry
+release has been smoke-tested. GitHub dependencies are supported for
+commit-pinned installs because `prepare` builds `dist`, but registry installs
+should not be treated as verified until publication is confirmed. Local tarballs
+are for testing package contents and consumer install behavior before
+publishing.
 
 This package is not production-ready until the release gates pass for the exact
 commit being released:

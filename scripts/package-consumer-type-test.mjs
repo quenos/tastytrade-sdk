@@ -8,6 +8,244 @@ const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const tscCommand = process.platform === 'win32' ? 'tsc.cmd' : 'tsc'
 const rootDir = process.cwd()
 const tempDir = mkdtempSync(join(tmpdir(), 'tastytrade-package-types-'))
+const forbiddenReadOnlyImports = [
+  'Session',
+  'LowLevelReadOnlySession',
+  'LowLevelReadOnlySessionLike',
+  'Account',
+  'OrderAction',
+  'OrderStatus',
+  'OrderTimeInForce',
+  'OrderType',
+  'ComplexOrderType',
+  'FillInfo',
+  'FillInfoInput',
+  'Leg',
+  'LegInput',
+  'Tradeable',
+  'buildLeg',
+  'TradeableTastytradeData',
+  'TradeableTastytradeDataInput',
+  'Message',
+  'MessageInput',
+  'OrderConditionPriceComponent',
+  'OrderCondition',
+  'OrderRule',
+  'AdvancedInstructions',
+  'AdvancedInstructionsInput',
+  'NewOrder',
+  'NewOrderInput',
+  'NewComplexOrder',
+  'NewComplexOrderInput',
+  'PlacedOrder',
+  'PlacedComplexOrder',
+  'BuyingPowerEffect',
+  'FeeCalculation',
+  'PlacedOrderResponse',
+  'PlacedComplexOrderResponse',
+  'OrderPlacementOptions',
+  'DeleteOrderIntent',
+  'DeleteComplexOrderIntent',
+  'ReplaceOrderIntent',
+  'placeOrder',
+  'place_order',
+  'a_place_order',
+  'placeComplexOrder',
+  'place_complex_order',
+  'a_place_complex_order',
+  'replaceOrder',
+  'replace_order',
+  'a_replace_order',
+  'deleteOrder',
+  'delete_order',
+  'a_delete_order',
+  'deleteComplexOrder',
+  'delete_complex_order',
+  'a_delete_complex_order',
+  'getOrderBuyingPowerEffect',
+  'get_order_buying_power_effect',
+  'a_get_order_buying_power_effect',
+  'PaperSession',
+  'PaperSessionOptions',
+  'PaperAlertStreamer',
+  'createAccount',
+  'deleteAccount',
+  'deposit',
+  'temporaryAccount',
+  'PrivateWatchlist',
+  'createPrivateWatchlist',
+  'create_private_watchlist',
+  'a_create_private_watchlist',
+  'updatePrivateWatchlist',
+  'update_private_watchlist',
+  'a_update_private_watchlist',
+  'deletePrivateWatchlist',
+  'delete_private_watchlist',
+  'a_delete_private_watchlist',
+  '_get',
+  '_a_get',
+  '_paginate',
+  '_post',
+  '_a_post',
+  '_put',
+  '_a_put',
+  '_delete',
+  '_a_delete',
+  'headers',
+  'session_token',
+  'streamer_token',
+  'exportSensitiveSessionSnapshot',
+  'getCustomer',
+  'get_customer',
+  'a_get_customer'
+]
+const forbiddenReadOnlyValueExports = [
+  'Session',
+  'LowLevelReadOnlySession',
+  'Account',
+  'OrderAction',
+  'OrderStatus',
+  'OrderTimeInForce',
+  'OrderType',
+  'ComplexOrderType',
+  'FillInfo',
+  'Leg',
+  'buildLeg',
+  'TradeableTastytradeData',
+  'Message',
+  'OrderConditionPriceComponent',
+  'OrderCondition',
+  'OrderRule',
+  'AdvancedInstructions',
+  'NewOrder',
+  'NewComplexOrder',
+  'PlacedOrder',
+  'PlacedComplexOrder',
+  'BuyingPowerEffect',
+  'FeeCalculation',
+  'PlacedOrderResponse',
+  'PlacedComplexOrderResponse',
+  'placeOrder',
+  'place_order',
+  'a_place_order',
+  'placeComplexOrder',
+  'place_complex_order',
+  'a_place_complex_order',
+  'replaceOrder',
+  'replace_order',
+  'a_replace_order',
+  'deleteOrder',
+  'delete_order',
+  'a_delete_order',
+  'deleteComplexOrder',
+  'delete_complex_order',
+  'a_delete_complex_order',
+  'getOrderBuyingPowerEffect',
+  'get_order_buying_power_effect',
+  'a_get_order_buying_power_effect',
+  'PaperSession',
+  'PaperAlertStreamer',
+  'createAccount',
+  'deleteAccount',
+  'deposit',
+  'temporaryAccount',
+  'PrivateWatchlist',
+  'createPrivateWatchlist',
+  'create_private_watchlist',
+  'a_create_private_watchlist',
+  'updatePrivateWatchlist',
+  'update_private_watchlist',
+  'a_update_private_watchlist',
+  'deletePrivateWatchlist',
+  'delete_private_watchlist',
+  'a_delete_private_watchlist',
+  '_get',
+  '_a_get',
+  '_paginate',
+  '_post',
+  '_a_post',
+  '_put',
+  '_a_put',
+  '_delete',
+  '_a_delete',
+  'headers',
+  'session_token',
+  'streamer_token',
+  'exportSensitiveSessionSnapshot',
+  'getCustomer',
+  'get_customer',
+  'a_get_customer'
+]
+const forbiddenReadOnlySessionMembers = [
+  'session',
+  'fetch',
+  'headers',
+  'session_token',
+  'sessionToken',
+  'streamer_token',
+  'streamerToken',
+  '_get',
+  '_a_get',
+  '_paginate',
+  '_post',
+  '_a_post',
+  '_put',
+  '_a_put',
+  '_delete',
+  '_a_delete',
+  'requestData',
+  'requestJson',
+  'url',
+  'exportSensitiveSessionSnapshot',
+  'getCustomer',
+  'get_customer',
+  'a_get_customer',
+  'placeOrder',
+  'place_order',
+  'a_place_order',
+  'placeComplexOrder',
+  'place_complex_order',
+  'a_place_complex_order',
+  'replaceOrder',
+  'replace_order',
+  'a_replace_order',
+  'deleteOrder',
+  'delete_order',
+  'a_delete_order',
+  'deleteComplexOrder',
+  'delete_complex_order',
+  'a_delete_complex_order',
+  'getOrderBuyingPowerEffect',
+  'get_order_buying_power_effect',
+  'a_get_order_buying_power_effect',
+  'createAccount',
+  'deleteAccount',
+  'deposit',
+  'temporaryAccount',
+  'createPrivateWatchlist',
+  'updatePrivateWatchlist',
+  'deletePrivateWatchlist',
+  'remove',
+  'a_remove',
+  'upload',
+  'a_upload',
+  'update',
+  'a_update',
+  'addSymbol',
+  'add_symbol',
+  'removeSymbol',
+  'remove_symbol'
+]
+
+function forbiddenImportAssertions(specifier) {
+  return forbiddenReadOnlyImports
+    .map(
+      (name) => `
+      // @ts-expect-error ${specifier} must not export ${name}.
+      import type { ${name} } from '${specifier}'`
+    )
+    .join('\n')
+}
 
 try {
   const packOutput = execFileSync(npmCommand, ['pack', '--json', '--pack-destination', tempDir], {
@@ -123,28 +361,9 @@ try {
 
       type AssertNever<T extends never> = T
 
-      type ForbiddenReadOnlyExports =
-        | 'Account'
-        | 'Session'
-        | 'NewOrder'
-        | 'placeOrder'
-        | '_post'
-        | '_put'
-        | '_delete'
+      type ForbiddenReadOnlyExports = ${forbiddenReadOnlyValueExports.map((name) => `| '${name}'`).join('\n        ')}
 
-      type ForbiddenReadOnlySessionMembers =
-        | 'fetch'
-        | 'headers'
-        | 'session_token'
-        | 'streamer_token'
-        | '_get'
-        | '_a_get'
-        | '_post'
-        | '_a_post'
-        | '_put'
-        | '_a_put'
-        | '_delete'
-        | '_a_delete'
+      type ForbiddenReadOnlySessionMembers = ${forbiddenReadOnlySessionMembers.map((name) => `| '${name}'`).join('\n        ')}
 
       type _NoForbiddenExports = AssertNever<Extract<ForbiddenReadOnlyExports, keyof typeof readOnly>>
       type _NoForbiddenAliasExports = AssertNever<Extract<ForbiddenReadOnlyExports, keyof typeof readOnlyAlias>>
@@ -152,20 +371,54 @@ try {
 
       declare const session: ReadOnlySession
 
-      // @ts-expect-error read-only entrypoint must not expose Account.
-      readOnly.Account
       // @ts-expect-error read-only entrypoint must not expose Session.
       readOnly.Session
+      // @ts-expect-error read-only entrypoint must not expose LowLevelReadOnlySession.
+      readOnly.LowLevelReadOnlySession
+      // @ts-expect-error read-only entrypoint must not expose Account.
+      readOnly.Account
       // @ts-expect-error read-only entrypoint must not expose NewOrder.
       readOnly.NewOrder
-      // @ts-expect-error read-only entrypoint must not expose placeOrder.
-      readOnly.placeOrder
+      // @ts-expect-error read-only entrypoint must not expose PlacedOrderResponse.
+      readOnly.PlacedOrderResponse
+      // @ts-expect-error read-only entrypoint must not expose BuyingPowerEffect.
+      readOnly.BuyingPowerEffect
+      // @ts-expect-error read-only entrypoint must not expose PaperSession.
+      readOnly.PaperSession
+      // @ts-expect-error read-only entrypoint must not expose PrivateWatchlist.
+      readOnly.PrivateWatchlist
+      // @ts-expect-error read-only entrypoint must not expose createPrivateWatchlist.
+      readOnly.createPrivateWatchlist
       // @ts-expect-error read-only entrypoint must not expose _post.
       readOnly._post
       // @ts-expect-error read-only entrypoint must not expose _put.
       readOnly._put
       // @ts-expect-error read-only entrypoint must not expose _delete.
       readOnly._delete
+      // @ts-expect-error read_only alias must not expose Session.
+      readOnlyAlias.Session
+      // @ts-expect-error read_only alias must not expose LowLevelReadOnlySession.
+      readOnlyAlias.LowLevelReadOnlySession
+      // @ts-expect-error read_only alias must not expose Account.
+      readOnlyAlias.Account
+      // @ts-expect-error read_only alias must not expose NewOrder.
+      readOnlyAlias.NewOrder
+      // @ts-expect-error read_only alias must not expose PlacedOrderResponse.
+      readOnlyAlias.PlacedOrderResponse
+      // @ts-expect-error read_only alias must not expose BuyingPowerEffect.
+      readOnlyAlias.BuyingPowerEffect
+      // @ts-expect-error read_only alias must not expose PaperSession.
+      readOnlyAlias.PaperSession
+      // @ts-expect-error read_only alias must not expose PrivateWatchlist.
+      readOnlyAlias.PrivateWatchlist
+      // @ts-expect-error read_only alias must not expose createPrivateWatchlist.
+      readOnlyAlias.createPrivateWatchlist
+      // @ts-expect-error read_only alias must not expose _post.
+      readOnlyAlias._post
+      // @ts-expect-error read_only alias must not expose _put.
+      readOnlyAlias._put
+      // @ts-expect-error read_only alias must not expose _delete.
+      readOnlyAlias._delete
       // @ts-expect-error read-only session must not expose mutable headers.
       session.headers
       // @ts-expect-error read-only session must not expose session bearer token.
@@ -176,12 +429,38 @@ try {
       session.fetch
       // @ts-expect-error read-only session must not expose low-level read internals.
       session._get
+      // @ts-expect-error read-only session must not expose raw pagination internals.
+      session._paginate
       // @ts-expect-error read-only session must not expose write internals.
       session._post
       // @ts-expect-error read-only session must not expose write internals.
       session._put
       // @ts-expect-error read-only session must not expose write internals.
       session._delete
+      // @ts-expect-error read-only session must not expose token-bearing snapshots.
+      session.exportSensitiveSessionSnapshot
+      // @ts-expect-error read-only session must not expose authenticated customer helper.
+      session.getCustomer
+      // @ts-expect-error read-only session must not expose live order submission.
+      session.placeOrder
+      // @ts-expect-error read-only session must not expose live order replacement.
+      session.replaceOrder
+      // @ts-expect-error read-only session must not expose live order deletion.
+      session.deleteOrder
+      // @ts-expect-error read-only session must not expose dry-run buying power previews.
+      session.getOrderBuyingPowerEffect
+      // @ts-expect-error read-only session must not expose paper account mutations.
+      session.createAccount
+      // @ts-expect-error read-only session must not expose private watchlist mutations.
+      session.createPrivateWatchlist
+    `
+  )
+
+  writeFileSync(
+    join(sourceDir, 'read-only-forbidden-imports.ts'),
+    `
+      ${forbiddenImportAssertions('tastytrade-ts-sdk/read-only')}
+      ${forbiddenImportAssertions('tastytrade-ts-sdk/read_only')}
     `
   )
 

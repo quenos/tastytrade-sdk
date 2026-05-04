@@ -4,7 +4,7 @@
 
 Initial pre-1.0 package baseline.
 
-- Install: published npm package is the recommended production installation path; GitHub installs are supported by the `prepare` lifecycle build; local tarballs are intended for package testing.
+- Install: npm registry installs are the intended production path only after a published release is smoke-tested; GitHub installs should be pinned to a commit or tag and are supported by the `prepare` lifecycle build; local tarballs are intended for package testing.
 - Release gates: CI and `prepublishOnly` include lint, formatting, tests, package smoke tests, dry-run package contents, consumer type tests, and production dependency audit.
 - Runtime: requires Node.js 20 or newer.
 - Compatibility goal: preserve tastyware-compatible contracts where implemented and covered by tests.

@@ -387,7 +387,7 @@ test('Account live replace/delete methods require explicit confirmation before n
   )
 })
 
-test('Account placeOrder defaults to dry-run and rejects legacy boolean live placement', async () => {
+test('Account placeOrder defaults omitted intent to dry-run and rejects legacy boolean live placement', async () => {
   const account = new Account({ 'account-number': '5WT' })
   const session = new MockSession({
     '/accounts/5WT/orders/dry-run': placedOrderResponse()
@@ -397,12 +397,68 @@ test('Account placeOrder defaults to dry-run and rejects legacy boolean live pla
   await account.placeOrder(session as unknown as Session, order, { mode: 'dry-run' })
   assert.equal(lastCall(session).url, '/accounts/5WT/orders/dry-run')
 
+  await account.placeOrder(session as unknown as Session, order)
+  assert.equal(lastCall(session).url, '/accounts/5WT/orders/dry-run')
+  assert.equal(session.calls.filter((call) => call.method === 'post' && call.url === '/accounts/5WT/orders').length, 0)
+
   await assert.rejects(
     // @ts-expect-error legacy boolean false is intentionally not type-valid for live orders.
     account.placeOrder(session as unknown as Session, order, false),
     /Live order placement requires \{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' \}/
   )
-  assert.equal(session.calls.filter((call) => call.method === 'post').length, 1)
+  assert.equal(session.calls.filter((call) => call.method === 'post').length, 2)
+})
+
+test('Account placeOrder rejects malformed live intents before network calls', async () => {
+  const account = new Account({ 'account-number': '5WT' })
+  const session = new MockSession()
+  const order = newOrder()
+  const invalidIntents = [
+    { mode: 'live', confirm: 'WRONG' },
+    {}
+  ] as unknown as Parameters<Account['placeOrder']>[2][]
+
+  for (const intent of invalidIntents) {
+    await assert.rejects(
+      account.placeOrder(session as unknown as Session, order, intent),
+      /Live order placement requires \{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' \}/
+    )
+  }
+
+  assert.equal(session.calls.filter((call) => call.method === 'post').length, 0)
+})
+
+test('Account mutation intent aliases cannot bypass confirmation gates', async () => {
+  const account = new Account({ 'account-number': '5WT' })
+  const session = new MockSession()
+  const order = newOrder()
+
+  await assert.rejects(
+    account.place_order(session as unknown as Session, order, {
+      mode: 'live',
+      confirm: 'WRONG'
+    } as unknown as Parameters<Account['place_order']>[2]),
+    /Live order placement requires \{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' \}/
+  )
+  await assert.rejects(
+    account.a_replace_order(session as unknown as Session, 99, order, {
+      mode: 'live',
+      confirm: 'DELETE_LIVE_ORDER'
+    } as unknown as Parameters<Account['a_replace_order']>[3]),
+    /Live order replacement requires \{ mode: 'live', confirm: 'REPLACE_LIVE_ORDER' \}/
+  )
+  await assert.rejects(
+    account.a_delete_order(session as unknown as Session, 11, {
+      mode: 'live',
+      confirm: 'DELETE_LIVE_COMPLEX_ORDER'
+    } as unknown as Parameters<Account['a_delete_order']>[2]),
+    /Live order deletion requires \{ mode: 'live', confirm: 'DELETE_LIVE_ORDER' \}/
+  )
+
+  assert.equal(
+    session.calls.filter((call) => call.method === 'post' || call.method === 'put' || call.method === 'delete').length,
+    0
+  )
 })
 
 test('Account placeComplexOrder uses complex endpoint and response wrapper', async () => {

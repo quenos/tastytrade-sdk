@@ -8,6 +8,168 @@ const importPackage = new Function('specifier', 'return import(specifier)') as (
   specifier: string
 ) => Promise<Record<string, unknown>>
 
+const forbiddenReadOnlyExports = [
+  'Session',
+  'LowLevelReadOnlySession',
+  'LowLevelReadOnlySessionLike',
+  'Account',
+  'OrderAction',
+  'OrderStatus',
+  'OrderTimeInForce',
+  'OrderType',
+  'ComplexOrderType',
+  'FillInfo',
+  'Leg',
+  'buildLeg',
+  'TradeableTastytradeData',
+  'Message',
+  'OrderConditionPriceComponent',
+  'OrderCondition',
+  'OrderRule',
+  'AdvancedInstructions',
+  'NewOrder',
+  'NewComplexOrder',
+  'PlacedOrder',
+  'PlacedComplexOrder',
+  'BuyingPowerEffect',
+  'FeeCalculation',
+  'PlacedOrderResponse',
+  'PlacedComplexOrderResponse',
+  'OrderPlacementOptions',
+  'DeleteOrderIntent',
+  'DeleteComplexOrderIntent',
+  'ReplaceOrderIntent',
+  'placeOrder',
+  'place_order',
+  'a_place_order',
+  'placeComplexOrder',
+  'place_complex_order',
+  'a_place_complex_order',
+  'replaceOrder',
+  'replace_order',
+  'a_replace_order',
+  'deleteOrder',
+  'delete_order',
+  'a_delete_order',
+  'deleteComplexOrder',
+  'delete_complex_order',
+  'a_delete_complex_order',
+  'getOrderBuyingPowerEffect',
+  'get_order_buying_power_effect',
+  'a_get_order_buying_power_effect',
+  'PaperSession',
+  'PaperAlertStreamer',
+  'PaperSessionOptions',
+  'createAccount',
+  'deleteAccount',
+  'deposit',
+  'temporaryAccount',
+  'PrivateWatchlist',
+  'createPrivateWatchlist',
+  'create_private_watchlist',
+  'a_create_private_watchlist',
+  'updatePrivateWatchlist',
+  'update_private_watchlist',
+  'a_update_private_watchlist',
+  'deletePrivateWatchlist',
+  'delete_private_watchlist',
+  'a_delete_private_watchlist',
+  '_get',
+  '_a_get',
+  '_paginate',
+  '_post',
+  '_a_post',
+  '_put',
+  '_a_put',
+  '_delete',
+  '_a_delete',
+  'headers',
+  'session_token',
+  'streamer_token',
+  'exportSensitiveSessionSnapshot',
+  'getCustomer',
+  'get_customer',
+  'a_get_customer'
+] as const
+
+const forbiddenReadOnlySessionMembers = [
+  'session',
+  'fetch',
+  'headers',
+  'session_token',
+  'sessionToken',
+  'streamer_token',
+  'streamerToken',
+  '_get',
+  '_a_get',
+  '_paginate',
+  '_post',
+  '_a_post',
+  '_put',
+  '_a_put',
+  '_delete',
+  '_a_delete',
+  'requestData',
+  'requestJson',
+  'url',
+  'exportSensitiveSessionSnapshot',
+  'getCustomer',
+  'get_customer',
+  'a_get_customer',
+  'placeOrder',
+  'place_order',
+  'a_place_order',
+  'placeComplexOrder',
+  'place_complex_order',
+  'a_place_complex_order',
+  'replaceOrder',
+  'replace_order',
+  'a_replace_order',
+  'deleteOrder',
+  'delete_order',
+  'a_delete_order',
+  'deleteComplexOrder',
+  'delete_complex_order',
+  'a_delete_complex_order',
+  'getOrderBuyingPowerEffect',
+  'get_order_buying_power_effect',
+  'a_get_order_buying_power_effect',
+  'createAccount',
+  'deleteAccount',
+  'deposit',
+  'temporaryAccount',
+  'createPrivateWatchlist',
+  'updatePrivateWatchlist',
+  'deletePrivateWatchlist',
+  'remove',
+  'a_remove',
+  'upload',
+  'a_upload',
+  'update',
+  'a_update',
+  'addSymbol',
+  'add_symbol',
+  'removeSymbol',
+  'remove_symbol'
+] as const
+
+function assertForbiddenExports(module: Record<string, unknown>, label: string): void {
+  for (const name of forbiddenReadOnlyExports) {
+    assert.equal(name in module, false, `${name} should not be exported from ${label}`)
+  }
+}
+
+function assertForbiddenSessionMembers(session: ReadOnly.ReadOnlySession): void {
+  for (const name of forbiddenReadOnlySessionMembers) {
+    assert.equal(name in session, false, `${name} should not be exposed on ReadOnlySession`)
+    assert.equal(
+      typeof (session as unknown as Record<string, unknown>)[name],
+      'undefined',
+      `${name} should not be readable on ReadOnlySession`
+    )
+  }
+}
+
 test('read-only entrypoint exposes market data, option chain, dxLink, and calendar APIs', () => {
   assert.equal(typeof ReadOnly.ReadOnlySession, 'function')
   assert.equal(typeof ReadOnly.getMarketDataByType, 'function')
@@ -55,28 +217,13 @@ test('root entrypoint omits ReadOnlySession so examples import it from read-only
   type _RootReadOnlySessionLike = Root.ReadOnlySessionLike
 })
 
-test('read-only entrypoint does not export trading, mutation, paper, watchlist, or raw write APIs', () => {
-  const forbidden = [
-    'Session',
-    'Account',
-    'NewOrder',
-    'OrderAction',
-    'placeOrder',
-    'replaceOrder',
-    'deleteOrder',
-    'PrivateWatchlist',
-    'createPrivateWatchlist',
-    'deletePrivateWatchlist',
-    'PaperSession',
-    'getCustomer',
-    '_post',
-    '_put',
-    '_delete'
-  ]
+test('read-only entrypoints do not export trading, mutation, paper, watchlist, raw, or token APIs', async () => {
+  const exported = await importPackage('tastytrade-ts-sdk/read-only')
+  const aliasExported = await importPackage('tastytrade-ts-sdk/read_only')
 
-  for (const name of forbidden) {
-    assert.equal(name in ReadOnly, false, `${name} should not be exported from read-only entrypoint`)
-  }
+  assertForbiddenExports(ReadOnly, 'source read-only entrypoint')
+  assertForbiddenExports(exported, 'tastytrade-ts-sdk/read-only')
+  assertForbiddenExports(aliasExported, 'tastytrade-ts-sdk/read_only')
 })
 
 test('ReadOnlySession can read market data but does not expose mutation helpers', async () => {
@@ -100,17 +247,7 @@ test('ReadOnlySession can read market data but does not expose mutation helpers'
   const data = await ReadOnly.getMarketDataByType(session, { equities: ['SPY'] })
 
   assert.equal(data[0]?.symbol, 'SPY')
-  assert.equal(typeof (session as unknown as { headers?: unknown }).headers, 'undefined')
-  assert.equal(typeof (session as unknown as { fetch?: unknown }).fetch, 'undefined')
-  assert.equal(typeof (session as unknown as { session_token?: unknown }).session_token, 'undefined')
-  assert.equal(typeof (session as unknown as { streamer_token?: unknown }).streamer_token, 'undefined')
-  assert.equal(typeof (session as unknown as { _get?: unknown })._get, 'undefined')
-  assert.equal(typeof (session as unknown as { _a_get?: unknown })._a_get, 'undefined')
-  assert.equal(typeof (session as unknown as { exportSensitiveSessionSnapshot?: unknown }).exportSensitiveSessionSnapshot, 'undefined')
-  assert.equal(typeof (session as unknown as { getCustomer?: unknown }).getCustomer, 'undefined')
-  assert.equal(typeof (session as unknown as { _post?: unknown })._post, 'undefined')
-  assert.equal(typeof (session as unknown as { _put?: unknown })._put, 'undefined')
-  assert.equal(typeof (session as unknown as { _delete?: unknown })._delete, 'undefined')
+  assertForbiddenSessionMembers(session)
   assert.ok(calls.some((call) => call.url.endsWith('/market-data/by-type?equity=SPY')))
 })
 
@@ -123,12 +260,44 @@ test('ReadOnlySession type does not expose raw request or token-bearing internal
 
   // @ts-expect-error read-only facade intentionally omits raw request access.
   session._get
+  // @ts-expect-error read-only facade intentionally omits low-level async read internals.
+  session._a_get
+  // @ts-expect-error read-only facade intentionally omits raw pagination internals.
+  session._paginate
+  // @ts-expect-error read-only facade intentionally omits raw write internals.
+  session._post
+  // @ts-expect-error read-only facade intentionally omits raw write internals.
+  session._a_post
+  // @ts-expect-error read-only facade intentionally omits raw write internals.
+  session._put
+  // @ts-expect-error read-only facade intentionally omits raw write internals.
+  session._a_put
+  // @ts-expect-error read-only facade intentionally omits raw write internals.
+  session._delete
+  // @ts-expect-error read-only facade intentionally omits raw write internals.
+  session._a_delete
   // @ts-expect-error read-only facade intentionally omits mutable headers.
   session.headers
   // @ts-expect-error read-only facade intentionally omits session bearer tokens.
   session.session_token
   // @ts-expect-error read-only facade intentionally omits streamer bearer tokens.
   session.streamer_token
+  // @ts-expect-error read-only facade intentionally omits token-bearing snapshots.
+  session.exportSensitiveSessionSnapshot
+  // @ts-expect-error read-only facade intentionally omits authenticated customer helper.
+  session.getCustomer
+  // @ts-expect-error read-only facade intentionally omits live order submission.
+  session.placeOrder
+  // @ts-expect-error read-only facade intentionally omits live order replacement.
+  session.replaceOrder
+  // @ts-expect-error read-only facade intentionally omits live order deletion.
+  session.deleteOrder
+  // @ts-expect-error read-only facade intentionally omits dry-run buying power previews.
+  session.getOrderBuyingPowerEffect
+  // @ts-expect-error read-only facade intentionally omits paper account mutations.
+  session.createAccount
+  // @ts-expect-error read-only facade intentionally omits private watchlist mutations.
+  session.createPrivateWatchlist
 })
 
 test('read-only DXLinkStreamer facade does not expose low-level connection internals at runtime', () => {
