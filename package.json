@@ -1,0 +1,115 @@
+{
+  "name": "tastytrade-ts-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript port of tastyware/tastytrade with tastyware-compatible contracts.",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./account": {
+      "types": "./dist/src/account.d.ts",
+      "import": "./dist/src/account.js"
+    },
+    "./calendar": {
+      "types": "./dist/src/calendar.d.ts",
+      "import": "./dist/src/calendar.js"
+    },
+    "./constants": {
+      "types": "./dist/src/constants.d.ts",
+      "import": "./dist/src/constants.js"
+    },
+    "./decimal": {
+      "types": "./dist/src/decimal.d.ts",
+      "import": "./dist/src/decimal.js"
+    },
+    "./instruments": {
+      "types": "./dist/src/instruments.d.ts",
+      "import": "./dist/src/instruments.js"
+    },
+    "./market-data": {
+      "types": "./dist/src/market-data.d.ts",
+      "import": "./dist/src/market-data.js"
+    },
+    "./market_data": {
+      "types": "./dist/src/market-data.d.ts",
+      "import": "./dist/src/market-data.js"
+    },
+    "./market-sessions": {
+      "types": "./dist/src/market-sessions.d.ts",
+      "import": "./dist/src/market-sessions.js"
+    },
+    "./market_sessions": {
+      "types": "./dist/src/market-sessions.d.ts",
+      "import": "./dist/src/market-sessions.js"
+    },
+    "./metrics": {
+      "types": "./dist/src/metrics.d.ts",
+      "import": "./dist/src/metrics.js"
+    },
+    "./order": {
+      "types": "./dist/src/order.d.ts",
+      "import": "./dist/src/order.js"
+    },
+    "./paper": {
+      "types": "./dist/src/paper.d.ts",
+      "import": "./dist/src/paper.js"
+    },
+    "./search": {
+      "types": "./dist/src/search.d.ts",
+      "import": "./dist/src/search.js"
+    },
+    "./session": {
+      "types": "./dist/src/session.d.ts",
+      "import": "./dist/src/session.js"
+    },
+    "./streamer": {
+      "types": "./dist/src/streamer.d.ts",
+      "import": "./dist/src/streamer.js"
+    },
+    "./utils": {
+      "types": "./dist/src/utils.d.ts",
+      "import": "./dist/src/utils.js"
+    },
+    "./watchlists": {
+      "types": "./dist/src/watchlists.d.ts",
+      "import": "./dist/src/watchlists.js"
+    },
+    "./dxfeed": {
+      "types": "./dist/src/dxfeed/index.d.ts",
+      "import": "./dist/src/dxfeed/index.js"
+    },
+    "./dxfeed/*": {
+      "types": "./dist/src/dxfeed/*.d.ts",
+      "import": "./dist/src/dxfeed/*.js"
+    }
+  },
+  "files": [
+    "dist/src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "test:e2e": "npm run build && node --test dist/tests/e2e/*.test.js"
+  },
+  "keywords": [
+    "tastytrade",
+    "tastyware",
+    "sdk",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.57",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.8.3",
+    "ws": "^8.20.0"
+  }
+}

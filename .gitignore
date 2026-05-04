@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+tastytrade.auth.json
+.DS_Store
+npm-debug.log*
