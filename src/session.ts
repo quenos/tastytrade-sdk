@@ -316,6 +316,12 @@ export class Session {
     return JSON.stringify(safeSessionSnapshot(this))
   }
 
+  /**
+   * Exports provider secret, refresh token, bearer tokens, and headers.
+   *
+   * Do not log, commit, or share this snapshot. Prefer serialize() unless
+   * secret-preserving restore is explicitly required.
+   */
   exportSensitiveSessionSnapshot(): string {
     const { fetch: _fetch, ...attrs } = this
     return JSON.stringify(attrs)

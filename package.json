@@ -62,6 +62,10 @@
       "types": "./dist/src/read-only.d.ts",
       "import": "./dist/src/read-only.js"
     },
+    "./read_only": {
+      "types": "./dist/src/read-only.d.ts",
+      "import": "./dist/src/read-only.js"
+    },
     "./search": {
       "types": "./dist/src/search.d.ts",
       "import": "./dist/src/search.js"
@@ -99,7 +103,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/tests/*.test.js",
-    "test:e2e": "npm run build && node --test dist/tests/e2e/*.test.js"
+    "test:package": "npm run build && node scripts/package-smoke-test.mjs",
+    "test:e2e": "npm run build && node --import=./scripts/load-env.mjs --test dist/tests/e2e/*.test.js"
   },
   "keywords": [
     "tastytrade",

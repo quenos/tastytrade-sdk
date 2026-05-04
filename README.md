@@ -200,6 +200,61 @@ function startOfUtcDay(date: Date): Date {
 Install `ws` separately for the streaming example: `npm install ws`. dxLink
 quote tokens are not fetched when `TT_IS_TEST=true`.
 
+## Read-only market-data usage
+
+Scanner apps such as Income Navigator should import from the read-only
+entrypoint so the application surface is limited to market data, option-chain,
+calendar, metrics, search, and dxLink streaming APIs:
+
+```ts
+import WebSocket from 'ws'
+import type { WebSocketLike } from 'tastytrade-ts-sdk/read-only'
+import {
+  Candle,
+  DXLinkStreamer,
+  Greeks,
+  Quote,
+  ReadOnlySession,
+  getMarketDataByType,
+  getOptionChain
+} from 'tastytrade-ts-sdk/read-only'
+
+const session = new ReadOnlySession()
+const [spy] = await getMarketDataByType(session, { equities: ['SPY'] })
+const chain = await getOptionChain(session, 'SPY')
+
+const streamer = new DXLinkStreamer(
+  session,
+  (url: string): WebSocketLike => new WebSocket(url) as unknown as WebSocketLike
+)
+
+await streamer.connect()
+try {
+  await streamer.subscribe(Quote, 'SPY')
+  await streamer.subscribe(Greeks, '.SPY240621C500')
+  await streamer.subscribeCandle('SPY', '5m')
+
+  const quote = await streamer.getEvent(Quote)
+  const greeks = await streamer.getEvent(Greeks)
+  const candle = await streamer.getEvent(Candle)
+
+  console.log({ spy, expirations: Object.keys(chain), quote, greeks, candle })
+} finally {
+  await streamer.close()
+}
+```
+
+The read-only entrypoint intentionally excludes order placement, replacement,
+and cancellation; paper trading mutation; watchlist mutation; and raw write
+helpers. Root imports from `tastytrade-ts-sdk` expose broader SDK capabilities
+and should not be used by Income Navigator.
+
+`Session.serialize()` and `ReadOnlySession.serialize()` are safe and redacted by
+default. `exportSensitiveSessionSnapshot()` intentionally contains secrets and
+bearer tokens for explicit sensitive persistence or handoff workflows. Live
+order placement requires an explicit intent object:
+`{ mode: 'live', confirm: 'PLACE_LIVE_ORDER' }`.
+
 ## Local Credentials
 
 Copy `.env.example` to `.env` and fill in your OAuth client secret and refresh

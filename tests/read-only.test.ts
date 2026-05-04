@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import * as Root from '../src/index.js'
 import * as ReadOnly from '../src/read-only.js'
 
 const importPackage = new Function('specifier', 'return import(specifier)') as (
   specifier: string
-) => Promise<typeof ReadOnly>
+) => Promise<Record<string, unknown>>
 
 test('read-only entrypoint exposes market data, option chain, dxLink, and calendar APIs', () => {
   assert.equal(typeof ReadOnly.ReadOnlySession, 'function')
@@ -27,6 +28,31 @@ test('package export map resolves read-only entrypoint after build', async () =>
   assert.equal(exported.DXLinkStreamer, ReadOnly.DXLinkStreamer)
   assert.equal(typeof exported.getMarketDataByType, 'function')
   assert.equal(typeof exported.Quote, 'function')
+})
+
+test('package export map resolves read_only entrypoint alias after build', async () => {
+  const exported = await importPackage('tastytrade-ts-sdk/read_only')
+
+  assert.equal(exported.ReadOnlySession, ReadOnly.ReadOnlySession)
+  assert.equal(exported.DXLinkStreamer, ReadOnly.DXLinkStreamer)
+  assert.equal(typeof exported.getMarketDataByType, 'function')
+  assert.equal(typeof exported.Quote, 'function')
+})
+
+test('root entrypoint omits ReadOnlySession so examples import it from read-only entrypoint', async () => {
+  const rootExported = await importPackage('tastytrade-ts-sdk')
+  const readOnlyExported = await importPackage('tastytrade-ts-sdk/read-only')
+
+  assert.equal('ReadOnlySession' in Root, false)
+  assert.equal('ReadOnlySessionLike' in Root, false)
+  assert.equal('ReadOnlySession' in rootExported, false)
+  assert.equal('ReadOnlySessionLike' in rootExported, false)
+  assert.equal(readOnlyExported.ReadOnlySession, ReadOnly.ReadOnlySession)
+
+  // @ts-expect-error ReadOnlySession is intentionally only available from tastytrade-ts-sdk/read-only.
+  Root.ReadOnlySession
+  // @ts-expect-error The root barrel also omits the unsafe session-level structural type.
+  type _RootReadOnlySessionLike = Root.ReadOnlySessionLike
 })
 
 test('read-only entrypoint does not export trading, mutation, paper, watchlist, or raw write APIs', () => {

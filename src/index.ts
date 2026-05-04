@@ -9,11 +9,24 @@ export * from './metrics.js'
 export * from './order.js'
 export * from './paper.js'
 export * from './search.js'
-export * from './session.js'
 export * from './streamer.js'
 export * from './utils.js'
 export * from './watchlists.js'
 export * from './dxfeed/index.js'
+
+export {
+  Address,
+  Customer,
+  CustomerAccountMarginType,
+  CustomerAccountType,
+  CustomerEntity,
+  CustomerPerson,
+  CustomerSuitability,
+  EntityOfficer,
+  EntitySuitability,
+  Session
+} from './session.js'
+export type { FetchLike, PageParams, SessionOptions } from './session.js'
 
 export { AccountBalance, CurrentPosition, TradingStatus } from './account.js'
 export { ExchangeType } from './market-sessions.js'
